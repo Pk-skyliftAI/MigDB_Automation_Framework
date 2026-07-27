@@ -1,0 +1,47 @@
+application:
+  name: MIGDB for Oracle
+
+environment:
+  name: QA
+
+browser:
+  engine: chromium
+  headless: true
+  slow_mo: 100
+  timeout: 30000
+
+urls:
+  base_url: "http://192.168.77.85:8080/?ojr=signin"
+
+credentials:
+  username: "admin"
+  password: "Welcome1"
+
+secure_vault:
+
+  domain: "SkyliftAI"
+
+  existing_aliases:
+    - "SOURCECDB"
+    - "TargetDB"
+    - "SOURCEPDB"
+
+  automation_alias:
+    username: "c##migdb@192.168.77.215:1521/orclpdb.localdomain"
+    password: "Welcome1"
+
+supplemental_logging:
+
+  default_cdb: SOURCECDB
+
+  trandata_schema: "C##MIGDB"
+
+execution:
+  retries: 1
+  workers: 2
+
+reporting:
+  screenshots: true
+  html_report: true
+  video: true
+  trace: true
