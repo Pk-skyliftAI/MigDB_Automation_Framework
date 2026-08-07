@@ -9,6 +9,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Nightly regression run for ongoing monitoring, independent of any
+    # push/PR activity - catches drift/regressions on days nobody commits.
+    # Cron is UTC; 02:00 UTC is off-hours for this team's timezone.
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       marker:
@@ -46,8 +51,12 @@ jobs:
         run: playwright install chromium firefox webkit
 
       - name: Run tests (push / pull_request - smoke only)
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: pytest -m smoke
+
+      - name: Run tests (nightly schedule - full regression)
+        if: github.event_name == 'schedule'
+        run: pytest -m regression
 
       - name: Run tests (manual dispatch)
         if: github.event_name == 'workflow_dispatch'

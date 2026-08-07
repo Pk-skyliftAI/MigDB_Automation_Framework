@@ -34,7 +34,20 @@ Defined in `.github/workflows/tests.yml`:
 |---|---|
 | `push` to `main` | Runs `pytest -m smoke` |
 | `pull_request` targeting `main` | Runs `pytest -m smoke` |
+| `schedule` (cron `0 2 * * *`, daily 02:00 UTC) | Runs `pytest -m regression` — an unattended nightly run that catches regressions/drift on days nobody pushes, independent of any code change |
 | `workflow_dispatch` (manual, "Run workflow" button) | Runs `pytest -m "<marker>" --browser=<browser>`, both provided as inputs at trigger time (default marker: `regression`, default browser: `chromium`) |
+
+**Notes on the nightly schedule:**
+- Cron-triggered runs use the workflow file **as committed on the default
+  branch (`main`)** — editing `tests.yml` on a feature branch won't change
+  the nightly run's behavior until that branch is merged.
+- The self-hosted runner (see above) must be online and idle at trigger
+  time or the run just queues until one picks it up; there's no retry logic
+  beyond that.
+- GitHub automatically disables scheduled workflows after **60 days with no
+  repository activity** (pushes, merges, etc.) — a `push` to `main` resets
+  that clock, so as long as the repo isn't fully dormant this isn't an
+  issue in practice.
 
 ## Stages
 
