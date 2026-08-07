@@ -19,33 +19,52 @@ pipeline {
         stage('Checkout') {
             steps { checkout scm }
         }
+
         stage('Install dependencies') {
             steps {
-                sh '''
-                    python3.11 -m venv venv
-                    . venv/bin/activate
-                    python3 -m pip install --upgrade pip
-                    pip3 install -r requirements.txt
-                '''
+                dir('AutomationFramework') {
+                    sh '''
+                        python3.11 -m venv venv
+                        . venv/bin/activate
+                        python3 -m pip install --upgrade pip
+                        pip3 install -r requirements.txt
+                    '''
+                }
             }
         }
+
         stage('Install Playwright browsers') {
-            steps { sh '''
+            steps {
+                dir('AutomationFramework') {
+                    sh '''
                         . venv/bin/activate
                         playwright install chromium firefox webkit
-                   '''
+                    '''
+                }
             }
         }
+
         stage('Run tests') {
             steps {
-                script {
-                    def cause = currentBuild.getBuildCauses().toString()
-                    if (cause.contains('TimerTrigger')) {
-                        sh 'pytest -m regression'
-                    } else if (cause.contains('UserIdCause')) {
-                        sh "pytest -m \"${params.MARKER}\" --browser=${params.BROWSER}"
-                    } else {
-                        sh 'pytest -m smoke'
+                dir('AutomationFramework') {
+                    script {
+                        def cause = currentBuild.getBuildCauses().toString()
+                        if (cause.contains('TimerTrigger')) {
+                            sh '''
+                                . venv/bin/activate
+                                pytest -m regression
+                            '''
+                        } else if (cause.contains('UserIdCause')) {
+                            sh """
+                                . venv/bin/activate
+                                pytest -m \"${params.MARKER}\" --browser=${params.BROWSER}
+                            """
+                        } else {
+                            sh '''
+                                . venv/bin/activate
+                                pytest -m smoke
+                            '''
+                        }
                     }
                 }
             }
@@ -54,7 +73,7 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'AutomationFramework/reports/**', allowEmptyArchive: true
         }
     }
 }
