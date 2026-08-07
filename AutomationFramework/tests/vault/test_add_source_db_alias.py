@@ -37,3 +37,16 @@ def test_add_database_alias(navigation, setup, vault):
     )
 
     vault.verify_alias_listed(alias)
+
+    vault.delete_database_alias(
+        alias_name=alias,
+        username=alias_data["username"],
+        domain=config.secure_vault["domain"]
+    )
+
+    vault.confirm_delete_alias()
+
+    vault.verify_alias_not_listed(
+        alias,
+        config.secure_vault["domain"]
+    )

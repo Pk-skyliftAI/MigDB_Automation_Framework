@@ -192,7 +192,7 @@ class SupplementalLoggingPage(BasePage):
         # a plain click is what actually works.
         self.click_by_role(*SupplementalLoggingLocators.YES_BUTTON)
 
-    def verify_trandata_result(self, dialog, schema, expected_status, timeout=30000):
+    def verify_trandata_result(self, dialog, schema, expected_status, timeout=45000):
         """Wait for an Add/View/Delete Trandata result dialog to finish
         processing (enabling/disabling supplemental logging takes several
         seconds) and confirm the schema's status, then close it.
@@ -200,9 +200,17 @@ class SupplementalLoggingPage(BasePage):
 
         role, name = dialog
 
+        # Bug fix: this dialog-visibility check previously ignored the
+        # timeout parameter entirely (only the OK button check below
+        # used it), so it was always bound by Playwright's default
+        # regardless of what a caller passed in - found live 2026-08-05
+        # when this real DB operation (enabling supplemental logging
+        # against the freshly-added SOURCEPDB alias) took longer than
+        # that default and failed despite the form being filled
+        # correctly (confirmed via failure screenshot).
         expect(
             self.page.get_by_role(role, name=name)
-        ).to_be_visible()
+        ).to_be_visible(timeout=timeout)
 
         ok_button = self.page.get_by_role(
             SupplementalLoggingLocators.OK_BUTTON[0],

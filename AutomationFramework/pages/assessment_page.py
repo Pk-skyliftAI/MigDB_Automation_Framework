@@ -1,3 +1,5 @@
+import time
+
 from playwright.sync_api import expect, TimeoutError as PlaywrightTimeoutError
 
 from pages.base_page import BasePage
@@ -86,7 +88,7 @@ class AssessmentPage(BasePage):
     # Monitor Job
     # ---------------------------------------------------------
 
-    def open_assessment_job(self, job_name_prefix, retries=6):
+    def open_assessment_job(self, job_name_prefix, timeout=60000):
 
         combo = self.page.get_by_role(
             AssessmentLocators.SELECT_ASSESSMENT_COMBOBOX[0],
@@ -95,14 +97,20 @@ class AssessmentPage(BasePage):
 
         # Job names are "<alias>_<timestamp>" - the most recently created
         # matching job is the one this run just kicked off. The job can
-        # take a few seconds to appear in this list after Run Assessment
-        # is clicked, so retry reopening the combobox rather than a
-        # single fixed wait.
+        # take well over the previous fixed ~20s retry budget to appear
+        # in this list under load (confirmed live: a job created seconds
+        # earlier was still missing from a fresh listing), consistent
+        # with the same backend flakiness behind Run Assessment's known
+        # false-negative "technical issue" dialog - so retry reopening
+        # the combobox (it re-fetches on open) against a generous time
+        # budget rather than a small fixed retry count.
         matching = self.page.locator(
             "[role='row']"
         ).filter(has_text=job_name_prefix)
 
-        for attempt in range(retries):
+        deadline = time.monotonic() + (timeout / 1000)
+
+        while time.monotonic() < deadline:
             combo.click(force=True)
 
             if matching.count() > 0:
