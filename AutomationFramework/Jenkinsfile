@@ -1,0 +1,54 @@
+pipeline {
+    agent any   // runs directly on odb since Jenkins master IS odb in this setup
+
+    parameters {
+        string(name: 'MARKER', defaultValue: 'regression', description: 'pytest -m marker expression to run')
+        choice(name: 'BROWSER', choices: ['chromium', 'firefox', 'webkit'], description: 'Browser to run against')
+    }
+
+    environment {
+        MIGDB_USERNAME = credentials('migdb-username')
+        MIGDB_PASSWORD = credentials('migdb-password')
+    }
+
+    triggers {
+        cron('0 2 * * *')   // scheduled regression
+    }
+
+    stages {
+        stage('Checkout') {
+            steps { checkout scm }
+        }
+        stage('Install dependencies') {
+            steps {
+                sh '''
+                    python3 -m pip install --upgrade pip
+                    pip3 install -r requirements.txt
+                '''
+            }
+        }
+        stage('Install Playwright browsers') {
+            steps { sh 'playwright install chromium firefox webkit' }
+        }
+        stage('Run tests') {
+            steps {
+                script {
+                    def cause = currentBuild.getBuildCauses().toString()
+                    if (cause.contains('TimerTrigger')) {
+                        sh 'pytest -m regression'
+                    } else if (cause.contains('UserIdCause')) {
+                        sh "pytest -m \"${params.MARKER}\" --browser=${params.BROWSER}"
+                    } else {
+                        sh 'pytest -m smoke'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+        }
+    }
+}
