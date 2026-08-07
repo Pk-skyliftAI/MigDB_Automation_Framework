@@ -1,5 +1,4 @@
 name: MigDB Automation Tests
-runs-on: self-hosted
 # NOTE: this workflow MUST run on a self-hosted runner. config/config.yaml's
 # urls.base_url points at a private on-prem host (192.168.77.130) that a
 # GitHub-hosted runner cannot reach. See docs/CI_CD.md for setup.
