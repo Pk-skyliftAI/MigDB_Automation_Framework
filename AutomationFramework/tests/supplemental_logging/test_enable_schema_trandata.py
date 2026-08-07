@@ -10,7 +10,11 @@ from locators.supplemental_logging_locators import SupplementalLoggingLocators
 def test_enable_schema_trandata(navigation, setup, supplemental_logging):
 
     domain = config.secure_vault["domain"]
-    alias = config.supplemental_logging["default_cdb"]
+    cdb_alias = config.supplemental_logging["default_cdb"]
+    # The "Vault Alias" field on the trandata form relabels to "Choose
+    # PDB(in CDB Mode)" once a CDB-root alias is selected above it, and
+    # needs its own PDB-level alias to see PDB-local schemas.
+    pdb_alias = config.supplemental_logging["pdb_alias"]
     schema = config.supplemental_logging["trandata_schema"]
 
     navigation.open_navigation_menu()
@@ -21,12 +25,12 @@ def test_enable_schema_trandata(navigation, setup, supplemental_logging):
 
     supplemental_logging.verify_page_loaded()
 
-    supplemental_logging.select_cdb(alias)
+    supplemental_logging.select_cdb(cdb_alias)
 
     # Add Trandata
     supplemental_logging.open_add_trandata_tab()
 
-    supplemental_logging.select_trandata_target(domain, alias, schema)
+    supplemental_logging.select_trandata_target(domain, pdb_alias, schema)
 
     supplemental_logging.submit_add_trandata()
 
@@ -39,7 +43,7 @@ def test_enable_schema_trandata(navigation, setup, supplemental_logging):
     # View Trandata
     supplemental_logging.open_view_trandata_tab()
 
-    supplemental_logging.select_trandata_target(domain, alias, schema)
+    supplemental_logging.select_trandata_target(domain, pdb_alias, schema)
 
     supplemental_logging.submit_view_trandata()
 
@@ -53,7 +57,7 @@ def test_enable_schema_trandata(navigation, setup, supplemental_logging):
     # state so the test cleans up after itself.
     supplemental_logging.open_delete_trandata_tab()
 
-    supplemental_logging.select_trandata_target(domain, alias, schema)
+    supplemental_logging.select_trandata_target(domain, pdb_alias, schema)
 
     supplemental_logging.submit_delete_trandata()
 

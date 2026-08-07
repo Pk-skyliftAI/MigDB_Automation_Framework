@@ -19,6 +19,14 @@ from pages.config_tables_page import ConfigTablesPage
 from pages.connections_page import ConnectionsPage
 from pages.purge_cdc_files_page import PurgeCdcFilesPage
 from pages.assessment_page import AssessmentPage
+from pages.initial_load_page import InitialLoadPage
+from pages.dataflow_page import DataflowPage
+from pages.conflict_resolution_page import ConflictResolutionPage
+from pages.analyze_objects_page import AnalyzeObjectsPage
+from pages.analyze_trails_page import AnalyzeTrailsPage
+from pages.troubleshoot_page import TroubleshootPage
+from pages.logfile_page import LogFilePage
+from pages.compare_pad_page import ComparePadPage
 
 logger = Logger.get_logger(__name__)
 
@@ -205,3 +213,35 @@ def purge_cdc_files(logged_in_page):
 @pytest.fixture
 def assessment(logged_in_page):
     return AssessmentPage(logged_in_page)
+
+@pytest.fixture
+def initial_load(logged_in_page):
+    return InitialLoadPage(logged_in_page)
+
+@pytest.fixture
+def dataflow(logged_in_page):
+    return DataflowPage(logged_in_page)
+
+@pytest.fixture
+def conflict_resolution(logged_in_page):
+    return ConflictResolutionPage(logged_in_page)
+
+@pytest.fixture
+def analyze_objects(logged_in_page):
+    return AnalyzeObjectsPage(logged_in_page)
+
+@pytest.fixture
+def analyze_trails(logged_in_page):
+    return AnalyzeTrailsPage(logged_in_page)
+
+@pytest.fixture
+def troubleshoot(logged_in_page):
+    return TroubleshootPage(logged_in_page)
+
+@pytest.fixture
+def logfile(logged_in_page):
+    return LogFilePage(logged_in_page)
+
+@pytest.fixture
+def compare_pad(logged_in_page):
+    return ComparePadPage(logged_in_page)

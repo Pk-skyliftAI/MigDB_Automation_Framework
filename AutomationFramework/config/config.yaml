@@ -11,7 +11,12 @@ browser:
   timeout: 30000
 
 urls:
-  base_url: "http://192.168.77.85:8080/?ojr=signin"
+  # App moved again 2026-08-05: from the 108.128.46.58 EC2 instance (had
+  # a GoldenGate Manager down issue + on-prem firewall/NAT problem
+  # blocking source/target DB connectivity) to a new on-prem server that
+  # can reach the on-prem source/target DBs directly - user confirmed
+  # "everything is working fine" here.
+  base_url: "http://192.168.77.130:8080/?ojr=signin"
 
 credentials:
   username: "admin"
@@ -23,7 +28,19 @@ secure_vault:
 
   existing_aliases:
     - "SOURCECDB"
-    - "TargetDB"
+    - "TARGETDB_ROOT"    # CDB-root only (c##migdb@192.168.77.42:1521/orcltgt) -
+                         # confirmed 2026-08-06 that Replicat refuses to log on
+                         # here at all: "OGG-02661 Replicat is not allowed to
+                         # log on to the root level database" (real PROCESS
+                         # ABENDING on RLP2). Fine for things that only need a
+                         # CDB-level connection (e.g. Config Tables' View,
+                         # which worked fine through this alias), NOT fine for
+                         # Target CredentialStore/Replicat - use TARGETPDB.
+    - "TARGETPDB"        # added 2026-08-06 - PDB-scoped
+                         # (c##migdb@192.168.77.42:1521/orclpdb, the "orclpdb"
+                         # service registered to PDB ORCLPDB - confirmed via
+                         # lsnrctl status / v$services on 192.168.77.42). This
+                         # is the one Replicat actually needs.
     - "SOURCEPDB"
 
   automation_alias:
@@ -34,7 +51,128 @@ supplemental_logging:
 
   default_cdb: SOURCECDB
 
-  trandata_schema: "C##MIGDB"
+  # The "Vault Alias" field relabels to "Choose PDB(in CDB Mode)" once a
+  # CDB-root alias is selected above, and needs a separate PDB-level
+  # vault alias to see PDB-local schemas (e.g. SAMPLE_APP) rather than
+  # only CDB-root-level common users.
+  pdb_alias: SOURCEPDB
+
+  trandata_schema: "SAMPLE_APP"
+
+config_tables:
+
+  checkpoint_domain: SkyliftAI
+
+  # Renamed a second time 2026-08-06: Target -> TargetDB -> TARGETDB_ROOT.
+  # See secure_vault.existing_aliases note - same connect string as
+  # before, no PDB in the service name. Re-verify before trusting this
+  # if it changes again.
+  checkpoint_alias: TARGETDB_ROOT
+
+  # Renamed CKPT -> CKPTS 2026-08-06 - old CKPT/CKPT_LOX were dropped
+  # and recreated fresh (had stale RLP1 data from a prior/cloned
+  # environment) then the user added the current one as CKPTS. Verified
+  # live on 192.168.77.42/ORCLPDB: C##MIGDB.CKPTS + CKPTS_LOX exist,
+  # correct GoldenGate checkpoint structure, 0 rows.
+  checkpoint_table_name: "ORCLPDB.C##MIGDB.CKPTS"
+
+designer:
+
+  deployment_name: "ORACLE"
+
+  # Real value on the 2026-08-05 on-prem environment - the source PDB is
+  # named ORCLPDB1 here (confirmed live via v$pdbs on 192.168.77.251),
+  # NOT "ORCLPDB" like every prior environment this session. Don't
+  # assume this stays ORCLPDB1 if the environment changes again -
+  # re-verify via v$pdbs before trusting it.
+  source_pdb_name: "ORCLPDB1"
+
+  capture_schema: "SAMPLE_APP"
+
+  # NOT yet confirmed to exist on the 2026-08-05 on-prem environment
+  # (fresh VM, GoldenGate Manager down at last check) - these are
+  # carried over from the prior EC2 environment's pipeline and are
+  # placeholders until the pipeline is rebuilt/confirmed here.
+  extract_name: "EXDEMO1"
+
+  trail_name: "st"
+
+  # Apply-side (Target Deployment / Target CredentialStore). Switched
+  # from "TARGETDB_ROOT" to "TARGETPDB" 2026-08-06 - the CDB-root alias
+  # makes Replicat ABEND ("OGG-02661 Replicat is not allowed to log on
+  # to the root level database", confirmed real on RLP2) - see
+  # secure_vault.existing_aliases note above. Rebuilding this branch
+  # for real from scratch should use TARGETPDB from the start.
+  target_alias: "TARGETPDB"
+
+  target_db_name: "ORCLTGT"
+
+  # Target's PDB is unchanged at "ORCLPDB" (confirmed live via v$pdbs on
+  # 192.168.77.42) even though source_pdb_name changed to ORCLPDB1 on
+  # this environment - a separate key on purpose (test_classic_replicat_
+  # apply.py previously reused source_pdb_name for both source and
+  # target, which only worked by coincidence when both were "ORCLPDB").
+  target_pdb_name: "ORCLPDB"
+
+  # NOT yet confirmed to exist on the 2026-08-05 on-prem environment -
+  # see extract_name note above.
+  replicat_name: "RLP2"
+
+  # --- Extract Pump / Classic Replicat creation - NOT live-confirmed ---
+  # need confirming with the user before this branch is ever exercised
+  # for real - see DesignerPage.add_extract_pump/add_classic_replicat
+  # docstrings.
+  pump_name: "MIGDBPM"
+
+  remote_trail_name: "rt"
+
+  # See config_tables.checkpoint_table_name note above - renamed to CKPTS.
+  checkpoint_table: "ORCLPDB.C##MIGDB.CKPTS"
+
+initial_load:
+
+  deployment_name: "ORACLE"
+
+  # Must be a PDB-level alias (not a CDB-root alias like SOURCECDB,
+  # which silently defaults to Oracle's PDB$SEED on this screen).
+  source_alias: "SOURCEPDB"
+
+  # See designer.source_pdb_name note above - real value on the
+  # 2026-08-05 on-prem environment is ORCLPDB1, not ORCLPDB.
+  source_pdb_name: "ORCLPDB1"
+
+  schema: "SAMPLE_APP"
+
+  # Strict 4-character max length on this screen.
+  load_name: "LD01"
+
+  target_deployment_name: "ORACLE"
+
+  # Switched to PDB-scoped alias 2026-08-06 - see designer.target_alias
+  # note above. Initial Load itself is out of active scope per user
+  # instruction, config left in sync anyway.
+  target_alias: "TARGETPDB"
+
+  # Target's PDB is "ORCLPDB" (no "1"), NOT the same as source_pdb_name
+  # ("ORCLPDB1") - a separate key on purpose, same class of bug as
+  # designer.target_pdb_name's note (test_homogeneous_initial_load.py
+  # was reusing source_pdb_name for the target row lookup too, which
+  # made select_target_db_row() search for a row that could never
+  # exist - confirmed live 2026-08-06 via a real 30s click timeout).
+  target_pdb_name: "ORCLPDB"
+
+  # Real value on 192.168.77.251 is "ORCLDB" (confirmed live via
+  # v$database, SID orcldb) - "ORCL" is a separate, unrelated non-CDB
+  # instance on the same host (confirmed CDB=NO), not this environment's
+  # source at all. This stale "ORCL" value made
+  # select_source_db_row()'s row-matching text ("ORCL ORCLPDB1") never
+  # match the real grid row ("ORCLDB ORCLPDB1"), causing a real 30s
+  # click timeout in test_homogeneous_initial_load.py.
+  source_db_name: "ORCLDB"
+
+  target_db_name: "ORCLTGT"
+
+  directory_name: "DATA_PUMP_DIR"
 
 execution:
   retries: 1

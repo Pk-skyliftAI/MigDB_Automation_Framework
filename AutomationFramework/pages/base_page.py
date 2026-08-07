@@ -138,6 +138,22 @@ class BasePage:
 
         expect(locator).to_have_count(0, timeout=timeout)
 
+    def right_click_diagram_node(self, node_name):
+        """Right-click a node in the Designer capture diagram (an Oracle
+        JET "Data Visualization: Diagram" canvas widget).
+
+        The diagram re-lays-out/repositions every node after each step
+        is configured (confirmed live across multiple screenshots), so a
+        fixed pixel coordinate is not reliable. Nodes DO have a stable
+        accessible name via role="img" regardless of position - use
+        that instead of coordinates.
+        """
+
+        self.page.get_by_role(
+            "img",
+            name=node_name
+        ).click(button="right")
+
     def select_cdb_combobox(self, cdb_name):
         """Select a value in the "Choose CDB(in CDB Mode)" oj-select-single
         combobox shared by Supplemental Logging and Assessment (same DOM
@@ -166,3 +182,28 @@ class BasePage:
         ).filter(
             has_text=re.compile(rf"^{re.escape(cdb_name)}$")
         ).first.click()
+
+    def select_lazy_combobox(self, combo, option_text, settle_timeout=15000):
+        """Select an option from an Oracle JET "oj-c-*" select/combobox
+        widget (a newer component family than the oj-select-single/
+        oj-searchselect widgets used elsewhere in this app - e.g. Setup's
+        Config Tables CheckpointTable/HeartBeatTable forms). Distinctive
+        by its popup rendering as plain text inside a `[id$='-dropdown']`
+        container, not role='option'/'row' elements.
+
+        Its option data loads asynchronously with no visible loading
+        indicator and can take 5-10s+ to actually populate (confirmed
+        live - a fixed short wait reliably shows a stale "No matches
+        found." even for a value that exists) - wait for the real option
+        text itself rather than a fixed delay.
+        """
+
+        combo.click(force=True)
+
+        dropdown = self.page.locator("[id$='-dropdown']").last
+
+        option = dropdown.get_by_text(option_text, exact=True)
+
+        expect(option).to_be_visible(timeout=settle_timeout)
+
+        option.click()

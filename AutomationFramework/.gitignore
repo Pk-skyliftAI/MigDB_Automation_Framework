@@ -38,3 +38,7 @@ screenshots/
 # OS
 .DS_Store
 Thumbs.db
+
+# SSH keys / credentials
+key/
+*.pem
