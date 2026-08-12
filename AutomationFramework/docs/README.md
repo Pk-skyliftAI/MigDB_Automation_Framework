@@ -53,7 +53,7 @@ the suite at a different environment.
 Login credentials default to `config.yaml`'s `credentials.username` /
 `credentials.password`, but can be overridden with `MIGDB_USERNAME` /
 `MIGDB_PASSWORD` environment variables — this is how CI supplies real
-credentials via GitHub Secrets instead of the committed file (see
+credentials via Jenkins credentials instead of the committed file (see
 [`CI_CD.md`](CI_CD.md)). Nothing else reads environment variables; an
 `.env` file exists at the repo root but is empty and unused (no
 `python-dotenv` call in the codebase), so values placed there are ignored
@@ -103,12 +103,14 @@ Everything lands under `reports/` (git-ignored):
 
 ## Running Tests in CI
 
-See [`CI_CD.md`](CI_CD.md) for the GitHub Actions workflow, its triggers,
-and why it must run on a self-hosted runner rather than a GitHub-hosted one.
+See [`CI_CD.md`](CI_CD.md) for the Jenkins pipeline, its triggers, and why
+it runs on self-hosted infrastructure rather than a cloud runner.
 
 ## More Documentation
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — Page Object Model layout and how the pieces fit together
+- [`PLAYWRIGHT_FRAMEWORK.md`](PLAYWRIGHT_FRAMEWORK.md) — technical reference: browser/context/page lifecycle, locator strategy, the full waiting/retry model, and the complete `BasePage` method catalog
 - [`TEST_CASES.md`](TEST_CASES.md) — every test suite, what it covers, and its markers
 - [`CI_CD.md`](CI_CD.md) — pipeline triggers, stages, and artifact locations
 - [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — common setup/run problems and fixes
+- [`../RUNBOOK.md`](../RUNBOOK.md) — step-by-step operational procedures: run, monitor, debug, and maintain the suite

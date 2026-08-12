@@ -62,8 +62,7 @@ pages/
                             purge_cdc_files, assessment, designer,
                             initial_load, manage, monitor, dataflow,
                             conflict_resolution, analyze_objects,
-                            analyze_trails, troubleshoot, logfile,
-                            compare_pad)
+                            analyze_trails, troubleshoot, logfile)
 
 tests/                   One subfolder per screen/module, mirroring pages/
   <module>/test_*.py
