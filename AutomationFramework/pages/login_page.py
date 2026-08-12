@@ -48,12 +48,17 @@ class LoginPage(BasePage):
 
     def verify_login_success(self):
 
+        # A "Refreshing Secure Vault" dialog can cover the whole app
+        # right after login with no fixed duration - confirmed live
+        # 2026-08-10 this now regularly exceeds the default 5s timeout
+        # (same class of race as Setup's other "Fetching.../Refreshing..."
+        # dialogs elsewhere in the app).
         expect(
             self.page.get_by_role(
                 "button",
                 name="ORACLE admin"
             )
-        ).to_be_visible()
+        ).to_be_visible(timeout=20000)
 
         return True
 

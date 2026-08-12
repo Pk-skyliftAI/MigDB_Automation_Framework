@@ -18,9 +18,14 @@ class DashboardPage(BasePage):
 
         expect(self.page).to_have_title(DashboardLocators.PAGE_TITLE)
 
+        # Same "Refreshing Secure Vault"/similar transient-dialog race as
+        # LoginPage.verify_login_success - confirmed live 2026-08-10/11
+        # this regularly outlasts the default 5s timeout even on a
+        # navigation that isn't a fresh login.
         self.expect_visible_by_role(
             "button",
-            "ORACLE admin"
+            "ORACLE admin",
+            timeout=20000
         )
 
         return True
@@ -32,7 +37,7 @@ class DashboardPage(BasePage):
                 "button",
                 name="ORACLE admin"
             )
-        ).to_be_visible()
+        ).to_be_visible(timeout=20000)
 
     def verify_dashboard_cards(self):
 
@@ -48,8 +53,26 @@ class DashboardPage(BasePage):
             "Process CPU Usage",
         ]
 
+        # The chart cards (Process Lag onward) render behind a
+        # "Fetching process lag data" progress placeholder with no
+        # fixed duration - confirmed live 2026-08-10 this now regularly
+        # exceeds the default 5s timeout. The gauge cards above render
+        # immediately, so this generous timeout costs nothing there
+        # (expect() returns as soon as the text appears).
+        #
+        # exact=True is required here, not the shared substring-match
+        # expect_visible_by_text helper: confirmed live 2026-08-11 that
+        # a permanently-hidden <p class="global-progress-text"> element
+        # reading "Fetching process lag data" now sits earlier in DOM
+        # order than the real "Process Lag" card heading. Substring
+        # matching ("process lag" is a case-insensitive substring of
+        # "Fetching process lag data") makes `.first` grab that hidden
+        # element every time and time out waiting for it to become
+        # visible, never reaching the real, already-visible card title.
         for card in cards:
-            self.expect_visible_by_text(card)
+            expect(
+                self.page.get_by_text(card, exact=True).first
+            ).to_be_visible(timeout=15000)
 
     def logout(self):
 

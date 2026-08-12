@@ -18,4 +18,3 @@ class NavigationLocators:
     TROUBLESHOOT = "Troubleshoot"
     LOGFILE = "LogFile"
     ASSESSMENT = "Assessment"
-    COMPARE_PAD = "Compare Pad"

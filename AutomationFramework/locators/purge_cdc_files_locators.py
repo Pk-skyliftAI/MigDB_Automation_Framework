@@ -22,7 +22,13 @@ class PurgeCdcFilesLocators:
         "label.purge-toggle[aria-label='Enable AUTORESTART']"
     )
 
-    # "Apply to mgr.prm" / "Reset" only render once at least one
-    # parameter toggle is enabled - in the default (nothing enabled)
-    # state this placeholder shows instead.
-    NO_PARAMETER_ENABLED_TEXT = "enable a parameter block above"
+    # Confirmed intentional (2026-08-10, user-verified): the screen's
+    # default state changed. "Apply to mgr.prm" / "Reset" and the
+    # mgr.prm syntax preview now render unconditionally, even with no
+    # parameter toggle enabled - the old "enable a parameter block
+    # above" placeholder text no longer appears at all.
+    MGR_PRM_PREVIEW_TEXT = "mgr.prm"
+
+    APPLY_BUTTON = ("button", "Apply to mgr.prm")
+
+    RESET_BUTTON = ("button", "Reset")

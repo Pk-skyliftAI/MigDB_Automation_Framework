@@ -54,7 +54,6 @@ class NavigationPage(BasePage):
             NavigationLocators.TROUBLESHOOT,
             NavigationLocators.LOGFILE,
             NavigationLocators.ASSESSMENT,
-            NavigationLocators.COMPARE_PAD,
         ]
 
         for item in menu_items:

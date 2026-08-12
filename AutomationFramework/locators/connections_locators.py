@@ -11,13 +11,25 @@ class ConnectionsLocators:
 
     ALTER_DATABASE_SECRETS_TEXT = "Alter Database Secrets"
 
+    # STALE as of 2026-08-10 - kept for reference/in case the app
+    # reverts. Confirmed live: the Add DB tab's Secretstore Alias and
+    # Database UserName textboxes no longer expose these accessible
+    # names at all (plain get_by_role("textbox", name=...) matches
+    # nothing) - pages/connections_page.py now uses DOM-order position
+    # instead. See docs/TROUBLESHOOTING.md.
     SECRETSTORE_ALIAS_TEXTBOX = ("textbox", "Secretstore Alias")
 
     DATABASE_USERNAME_TEXTBOX = ("textbox", "Database UserName")
 
+    # Confirmed live 2026-08-11: the textbox's own accessible name is
+    # just "hostname:dbport/dbservice" - "Connect String" is a separate,
+    # standalone label text node next to it, not part of the field's
+    # name. get_by_role(name=...) substring-matches against the
+    # element's OWN accessible name only, so the old value (which was
+    # longer than the real name) could never match.
     CONNECT_STRING_TEXTBOX = (
         "textbox",
-        "Connect String hostname:dbport/dbservice"
+        "hostname:dbport/dbservice"
     )
 
     # --- Alter OneP User Secrets toolbar/section ---
@@ -30,4 +42,5 @@ class ConnectionsLocators:
     LOCAL_DEPLOYMENT_RADIO = ("radio", "Local Deployment")
     REMOTE_DEPLOYMENT_RADIO = ("radio", "Remote Deployment")
 
+    # STALE as of 2026-08-10 - see note above, same regression.
     ROLE_COMBOBOX = ("combobox", "OnePlace User Role Required Role")
