@@ -39,8 +39,7 @@ class InitialLoadPage(BasePage):
             InitialLoadLocators.DEPLOYMENT_NAME_COMBOBOX[0],
             name=InitialLoadLocators.DEPLOYMENT_NAME_COMBOBOX[1]
         )
-        combo.click(force=True)
-        self.page.get_by_text(deployment_name, exact=True).click()
+        self.select_stable_combobox(combo, deployment_name)
 
         # Triggers an async source-vault fetch before the CDB/alias
         # combobox is usable, same lag family as Designer's equivalent
@@ -53,11 +52,7 @@ class InitialLoadPage(BasePage):
             InitialLoadLocators.SOURCE_ALIAS_COMBOBOX[0],
             name=InitialLoadLocators.SOURCE_ALIAS_COMBOBOX[1]
         ).first
-        alias_combo.click(force=True)
-        self.page.wait_for_timeout(3000)
-        self.page.locator(
-            "[role='option']:visible, [role='row']:visible"
-        ).filter(has_text=alias).first.click()
+        self.select_stable_combobox(alias_combo, alias)
 
         # Selecting the alias reveals Choose PDB Name/Export Mode/Choose
         # Schema Name asynchronously with no visible loading indicator.
@@ -67,22 +62,14 @@ class InitialLoadPage(BasePage):
             InitialLoadLocators.SOURCE_PDB_NAME_COMBOBOX[0],
             name=InitialLoadLocators.SOURCE_PDB_NAME_COMBOBOX[1]
         )
-        pdb_combo.click(force=True)
-        self.page.wait_for_timeout(2000)
-        self.page.locator(
-            "[role='option']:visible, [role='row']:visible"
-        ).filter(has_text=pdb_name).first.click()
+        self.select_stable_combobox(pdb_combo, pdb_name)
         self.page.wait_for_timeout(3000)
 
         schema_combo = self.page.get_by_role(
             InitialLoadLocators.SCHEMA_NAME_COMBOBOX[0],
             name=InitialLoadLocators.SCHEMA_NAME_COMBOBOX[1]
         )
-        schema_combo.click(force=True)
-        self.page.wait_for_timeout(3000)
-        self.page.locator(
-            "[role='option']:visible, [role='row']:visible"
-        ).filter(has_text=schema).first.click()
+        self.select_stable_combobox(schema_combo, schema)
         self.page.wait_for_timeout(2000)
 
         load_name_input = self.page.get_by_role(
@@ -120,21 +107,36 @@ class InitialLoadPage(BasePage):
             InitialLoadLocators.TARGET_DEPLOYMENT_COMBOBOX[0],
             name=InitialLoadLocators.TARGET_DEPLOYMENT_COMBOBOX[1]
         )
-        target_deploy.click(force=True)
-        self.page.wait_for_timeout(2000)
-        self.page.locator(
-            "[role='option']:visible, [role='row']:visible"
-        ).filter(has_text=deployment_name).first.click()
-        self.page.wait_for_timeout(4000)
+        self.select_stable_combobox(target_deploy, deployment_name)
 
-        # No accessible name at all - it's the last combobox on the page
-        # once Target Deployment is chosen.
-        target_alias_combo = self.page.get_by_role("combobox").last
-        target_alias_combo.click(force=True)
-        self.page.wait_for_timeout(3000)
-        self.page.locator(
-            "[role='option']:visible, [role='row']:visible"
-        ).filter(has_text=alias).first.click()
+        # Async fetch of target CDB/PDB metadata after this selection -
+        # confirmed live this needs a genuinely generous wait (12s), not
+        # the 4s this used to have, on the current app build.
+        self.page.wait_for_timeout(12000)
+
+        # Real app bug, confirmed live 2026-08-10: this field's visible
+        # hint text reads "Choose PDB(in CDB Mode)" but it has NO
+        # aria-labelledby at all, and shares its DOM id
+        # ("SRCDBDomain|input") with the unrelated SOURCE alias field
+        # above - so get_by_role(name=...) can never match it, and the
+        # old ".last combobox" positional guess breaks whenever a new
+        # element gets inserted after it (also confirmed live - a
+        # duplicate hidden template now sits after it in DOM order).
+        # Report to the dev team: this needs a real aria-labelledby
+        # fix, and the duplicate id needs to be unique. Until then,
+        # target the second (visible, non-empty-value) element sharing
+        # the source alias field's id rather than accessible name or
+        # plain position.
+        target_alias_combo = self.page.get_by_role(
+            "combobox",
+            name="Choose PDB(in CDB Mode)"
+        )
+        if target_alias_combo.count() == 0:
+            target_alias_combo = self.page.locator(
+                "[id='SRCDBDomain|input']"
+            ).last
+
+        self.select_stable_combobox(target_alias_combo, alias)
         self.page.wait_for_timeout(4000)
 
     def select_target_db_row(self, db_name, pdb_name):
@@ -209,22 +211,48 @@ class InitialLoadPage(BasePage):
 
         # Unlike Assessment's identical-looking "technical issue" dialog
         # (a confirmed false negative - the job completes anyway), this
-        # one is a REAL failure: confirmed via network capture that
-        # POST /api/v2/datapump/export returns HTTP 422 because the
-        # app's own frontend sends "impParallel" as a number instead of
-        # a string like "expParallel" - a real product bug, not
-        # something a retry or different UI path can work around. Fail
-        # fast with a clear message instead of a confusing downstream
-        # timeout on the next unrelated navigation click.
+        # one is a REAL failure: confirmed via network capture (still
+        # true as of 2026-08-10, after an app-binary update that did NOT
+        # fix it) that POST /api/v2/datapump/export returns HTTP 422
+        # because the app's own frontend sends "impParallel" as a number
+        # instead of a string like "expParallel" - a real product bug,
+        # not something a retry or different UI path can work around.
+        #
+        # The 2026-08-10 binary update changed HOW this specific error
+        # surfaces - it's now a dedicated "Error" dialog with the raw
+        # backend message ("body.impParallel: Input should be a valid
+        # string") instead of the old generic "There is a technical
+        # issue" text. Checking only the old text left this dialog open
+        # and undetected, which then blocked the next navigation click
+        # with a confusing, unrelated-looking 30s timeout instead of
+        # this clear assertion. Check both so this keeps working
+        # whichever dialog text a given build actually shows, and close
+        # whatever's found so the test doesn't leave a dialog open for
+        # the next step to trip over.
         technical_issue = self.page.get_by_text(
             "There is a technical issue",
             exact=False
         )
+        error_dialog = self.page.locator(
+            "[role='dialog']:visible"
+        ).filter(has_text="Error")
+
         if technical_issue.is_visible():
             raise AssertionError(
                 "Create Job failed: app shows 'There is a technical "
                 "issue' - confirmed via network capture this is a real "
                 "backend 422 on POST /api/v2/datapump/export "
+                "('impParallel' sent as a number, must be a string). "
+                "This is a real product bug, not a test/locator issue."
+            )
+
+        if error_dialog.count() > 0:
+            error_text = error_dialog.first.inner_text()
+            error_dialog.first.get_by_role("button", name="OK").click()
+            raise AssertionError(
+                f"Create Job failed: app shows an Error dialog "
+                f"({error_text!r}) - confirmed via network capture this "
+                "is a real backend 422 on POST /api/v2/datapump/export "
                 "('impParallel' sent as a number, must be a string). "
                 "This is a real product bug, not a test/locator issue."
             )

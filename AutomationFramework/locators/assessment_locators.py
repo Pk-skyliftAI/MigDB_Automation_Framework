@@ -23,5 +23,12 @@ class AssessmentLocators:
 
     RECOMMENDED_RDS_HEADING = ("heading", "Recommended RDS Instances")
     MIGRATION_BLOCKERS_HEADING = ("heading", "Migration Blockers")
+
+    # STALE as of 2026-08-11 - user-confirmed intentional app change:
+    # these buttons no longer exist anywhere on the completed report
+    # page (checked both a fresh job and one settled over a day earlier -
+    # only "Start Here"/"ORACLE admin" remain in the whole page's button
+    # list). No longer referenced by verify_assessment_completed(); kept
+    # here for reference in case the app reverts this.
     EXPORT_JSON_BUTTON = ("button", "Export JSON")
     EXPORT_PDF_BUTTON = ("button", "Export PDF")

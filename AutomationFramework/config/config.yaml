@@ -89,11 +89,14 @@ designer:
 
   capture_schema: "SAMPLE_APP"
 
-  # NOT yet confirmed to exist on the 2026-08-05 on-prem environment
-  # (fresh VM, GoldenGate Manager down at last check) - these are
-  # carried over from the prior EC2 environment's pipeline and are
-  # placeholders until the pipeline is rebuilt/confirmed here.
-  extract_name: "EXDEMO1"
+  # Renamed again 2026-08-11 - EXDEMO1 was deleted (user-confirmed) and
+  # replaced by EXDEMO3, the same rebuild pattern as the 2026-07-31
+  # EXDEMO1/RLP2 -> current rename (see migdb-framework-state memory).
+  # Confirmed live via Monitor's Extracts section (Lag 0s, Checkpoint
+  # Lag 1) before updating this value - don't trust a stale name here
+  # without re-checking Monitor first, this environment renames its
+  # pipeline more than once per project so far.
+  extract_name: "EXDEMO3"
 
   trail_name: "st"
 
@@ -114,9 +117,13 @@ designer:
   # target, which only worked by coincidence when both were "ORCLPDB").
   target_pdb_name: "ORCLPDB"
 
-  # NOT yet confirmed to exist on the 2026-08-05 on-prem environment -
-  # see extract_name note above.
-  replicat_name: "RLP2"
+  # Renamed again 2026-08-11 - see extract_name note above. Confirmed
+  # live via Monitor's Replicats section (RLP4, Lag 0s, Checkpoint Lag
+  # 7/9 across two checks) - this is also the same replicat whose
+  # RLP4.prm useridalias was fixed live earlier this session (see
+  # docs/TROUBLESHOOTING.md's dep_priv_url/RLP4 entries), so it's
+  # confirmed to be a real, currently-running process, not a stale name.
+  replicat_name: "RLP4"
 
   # --- Extract Pump / Classic Replicat creation - NOT live-confirmed ---
   # need confirming with the user before this branch is ever exercised

@@ -317,6 +317,20 @@ class DesignerPage(BasePage):
     # (Assessment) - a real product bug to report to the MigDB dev team,
     # not fixable from the test side. This blocks Classic Replicat too
     # (Extract Pump is a prerequisite node in the diagram).
+    #
+    # Reproduced again manually 2026-08-11 (same 405/undefined URL) with
+    # two additional Chrome DevTools console warnings on this same
+    # dialog worth including in the same bug report (non-fatal, doesn't
+    # affect automation - this app doesn't rely on ARIA focus semantics
+    # here): "Blocked aria-hidden on an element because its descendant
+    # retained focus" fired twice - once for the wizard's own
+    # `AddExtract_layer` dialog (focus was on the `.oj-train-label`
+    # step indicator) and once for the underlying page body (focus was
+    # on the capture diagram, `oj-diagram#diagram2`) while it sat behind
+    # an aria-hidden ancestor. Root cause pattern: the dialog/overlay is
+    # marking its background `aria-hidden="true"` without first moving
+    # focus out of it - a real accessibility bug in the same dialog as
+    # the 405, not a new/separate issue.
 
     def add_extract_pump(self, pump_name, remote_trail_name):
 
@@ -402,7 +416,17 @@ class DesignerPage(BasePage):
     # Verification
     # ---------------------------------------------------------
 
-    def is_replicat_listed(self, replicat_name, timeout=5000):
+    def is_replicat_listed(self, replicat_name, timeout=15000):
+        """Widened from a 5000ms default (2026-08-11): Monitor is a
+        live-data screen subject to the same "Fetching..." transient-
+        dialog lag confirmed on several other screens this session. A
+        false "not listed" here is worse than on a plain structure
+        check - it sends the caller into the real, no-delete-flow
+        creation branch for infrastructure that already exists, hitting
+        the confirmed real backend bugs on that path (see
+        docs/TROUBLESHOOTING.md) for no reason. Don't shrink this back
+        down without re-confirming Monitor loads reliably within 5s.
+        """
 
         try:
             expect(
@@ -429,7 +453,7 @@ class DesignerPage(BasePage):
         self.click_by_id("monitor")
         self.wait()
 
-    def is_extract_listed(self, extract_name, timeout=5000):
+    def is_extract_listed(self, extract_name, timeout=15000):
 
         try:
             expect(

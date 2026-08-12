@@ -100,12 +100,10 @@ file has more than one, both are listed.
 | `tests/troubleshoot/test_troubleshoot_screen.py` | `test_troubleshoot_screen_structure` | Integrated Extract healthcheck dashboard structure | `smoke`, `regression`, `troubleshoot` |
 | `tests/logfile/test_logfile_screen.py` | `test_logfile_screen_structure` | LogFile screen (CDC Error Log/Report Files/Discard Files) structure | `smoke`, `regression`, `logfile` |
 
-## Compare Pad
-
-| File | Test | Covers | Markers |
-|---|---|---|---|
-| `tests/compare_pad/test_compare_pad_screen.py` | `test_compare_pad_configure_navigation` | Navigation to Compare Pad > Configure lands correctly (content depends on an external ComparePad service this environment can't reach, so only navigation is asserted) | `smoke`, `regression`, `compare_pad` |
-| `tests/compare_pad/test_compare_pad_screen.py` | `test_compare_pad_monitor_navigation` | Navigation to Compare Pad > Monitor | `smoke`, `regression`, `compare_pad` |
+> **Compare Pad removed 2026-08-10**: this screen was removed from the
+> application in a binary update (confirmed live — no longer present
+> anywhere in the nav tree). Its tests, page object, locators, and
+> fixture have been removed from this framework to match.
 
 ## Full Marker Reference
 
@@ -116,7 +114,7 @@ From `pytest.ini`:
 `supplemental_logging`, `parameter_file`, `config_tables`, `connections`,
 `purge_cdc_files`, `assessment`, `initial_load`, `dataflow`,
 `conflict_resolution`, `analyze_objects`, `analyze_trails`, `troubleshoot`,
-`logfile`, `compare_pad`, `ui`, `negative`
+`logfile`, `ui`, `negative`
 
 `flaky` above refers to `@pytest.mark.flaky(reruns=2, reruns_delay=10)`
 from `pytest-rerunfailures` — used on tests that hit a documented,

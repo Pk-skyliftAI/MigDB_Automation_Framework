@@ -2,78 +2,58 @@
 
 ## Status
 
-Until this workflow was added, this repository had **no CI/CD pipeline** —
-the git history and repo contents show no `.github/workflows/`,
-`Jenkinsfile`, or any other pipeline config; tests were run manually via
-`pytest` from a local/on-prem shell. GitHub Actions is now wired up at
-[`.github/workflows/tests.yml`](../.github/workflows/tests.yml).
+Test runs are automated via **Jenkins**, defined in
+[`Jenkinsfile`](../Jenkinsfile) at the repo root. Jenkins is self-hosted at
+`http://192.168.77.215:8080`, job **`MigDB-Automation-Tests`**, with the
+pipeline agent running directly on the box that also hosts Jenkins itself
+(`agent any` — the Jenkinsfile comment notes "Jenkins master IS odb in this
+setup").
 
-## Why a Self-Hosted Runner Is Required
+## Why Self-Hosted Is Required
 
 `config/config.yaml`'s `urls.base_url` points at `192.168.77.130` — a
 private, on-prem address. The database hosts the tests indirectly depend on
-(source/target Oracle instances) are similarly private. **A GitHub-hosted
-runner cannot reach any of this** — it runs on GitHub's public cloud with no
-route into that network. The workflow is configured with `runs-on:
-self-hosted`, and must run on a machine that has network access to
-`192.168.77.130` (this test server, or another host on the same network).
+(source/target Oracle instances) are similarly private. A cloud-hosted CI
+runner would have no route into that network, so Jenkins runs on
+infrastructure that already has access.
 
-### Registering the self-hosted runner
+## Triggers & Behavior
 
-From the repository's GitHub page: **Settings → Actions → Runners → New
-self-hosted runner**, then follow GitHub's generated download/configure/run
-commands on the target machine. Install it as a service
-(`./svc.sh install && ./svc.sh start` on Linux) so it survives reboots and
-picks up jobs automatically.
+The `Run tests` stage inspects `currentBuild.getBuildCauses()` to decide
+what to run, so the **same pipeline** behaves differently depending on how
+it was started:
 
-## Triggers
+| Trigger | Cause string | Behavior |
+|---|---|---|
+| Nightly cron (`triggers { cron('0 2 * * *') }`) | `TimerTrigger` | `pytest -m regression` — full unattended nightly run |
+| Manually started from Jenkins UI ("Build with Parameters") | `UserIdCause` | `pytest -m "<MARKER>" --browser=<BROWSER>` using the build's `MARKER`/`BROWSER` parameters |
+| Anything else (e.g. an SCM webhook push) | (falls through) | `pytest -m smoke` |
 
-Defined in `.github/workflows/tests.yml`:
-
-| Trigger | Behavior |
-|---|---|
-| `push` to `main` | Runs `pytest -m smoke` |
-| `pull_request` targeting `main` | Runs `pytest -m smoke` |
-| `schedule` (cron `0 2 * * *`, daily 02:00 UTC) | Runs `pytest -m regression` — an unattended nightly run that catches regressions/drift on days nobody pushes, independent of any code change |
-| `workflow_dispatch` (manual, "Run workflow" button) | Runs `pytest -m "<marker>" --browser=<browser>`, both provided as inputs at trigger time (default marker: `regression`, default browser: `chromium`) |
-
-**Notes on the nightly schedule:**
-- Cron-triggered runs use the workflow file **as committed on the default
-  branch (`main`)** — editing `tests.yml` on a feature branch won't change
-  the nightly run's behavior until that branch is merged.
-- The self-hosted runner (see above) must be online and idle at trigger
-  time or the run just queues until one picks it up; there's no retry logic
-  beyond that.
-- GitHub automatically disables scheduled workflows after **60 days with no
-  repository activity** (pushes, merges, etc.) — a `push` to `main` resets
-  that clock, so as long as the repo isn't fully dormant this isn't an
-  issue in practice.
+**Build parameters** (set when triggering manually):
+- `MARKER` — string, defaults to `regression`
+- `BROWSER` — choice of `chromium` / `firefox` / `webkit`, defaults to `chromium`
 
 ## Stages
 
-Single job, `test`, running on `self-hosted`:
-
-1. **Checkout** — `actions/checkout@v4`
-2. **Set up Python** — `actions/setup-python@v5`, Python 3.13
-3. **Install dependencies** — `pip install -r requirements.txt`
-4. **Install Playwright browsers** — `playwright install chromium firefox
-   webkit` (pip alone does not install the browser binaries)
-5. **Run tests** — `pytest -m smoke` on automatic triggers, or the
-   user-supplied marker/browser on manual dispatch
-6. **Upload artifacts** — always runs (`if: always()`), even on failure
+1. **Checkout** — `checkout scm` (pulls the configured Git repo/branch)
+2. **Install dependencies** — inside `AutomationFramework/`: creates a
+   `venv` with `python3.12 -m venv venv`, activates it, upgrades `pip`, then
+   `pip3 install -r requirements.txt`
+3. **Install Playwright browsers** — `playwright install chromium firefox webkit`
+   (pip alone doesn't install the browser binaries)
+4. **Run tests** — one of the three commands above, depending on trigger cause
 
 ## Where Reports/Artifacts Are Published
 
-Locally and in CI, `pytest.ini`'s `addopts` writes a self-contained HTML
-report to `reports/html/report.html`; `conftest.py`'s fixtures/hooks add
-screenshots on failure, and optionally video/trace recordings (gated by
-`config.yaml`'s `reporting.video` / `reporting.trace` flags). All of it
-lands under `reports/` (git-ignored locally).
+`pytest.ini`'s `addopts` writes a self-contained HTML report to
+`reports/html/report.html`; `conftest.py`'s fixtures/hooks add screenshots
+on failure, and optionally video/trace recordings (gated by
+`config.yaml`'s `reporting.video` / `reporting.trace` flags).
 
-In CI, the whole `reports/` directory is uploaded as a workflow artifact
-named `test-reports-<run id>` (`actions/upload-artifact@v4`, 14-day
-retention), downloadable from the workflow run's summary page in GitHub's
-UI.
+The `post { always { ... } }` block archives everything under
+`AutomationFramework/reports/**` as a Jenkins build artifact
+(`allowEmptyArchive: true`, so a run that produces no reports doesn't fail
+the archive step) — downloadable from the build's page in the Jenkins UI.
 
 ## Credentials
 
@@ -81,16 +61,35 @@ The application login is read from `config.yaml`'s `credentials` section by
 default, but `config/settings.py` overrides `username`/`password` with the
 `MIGDB_USERNAME`/`MIGDB_PASSWORD` environment variables when they're set,
 falling back to `config.yaml` otherwise — so local runs are unaffected
-either way. The workflow injects both as job-level `env` from
-`${{ secrets.MIGDB_USERNAME }}` / `${{ secrets.MIGDB_PASSWORD }}`.
+either way (see [`README.md`](README.md)).
 
-**One-time setup**: in the repo's **Settings → Secrets and variables →
-Actions**, add `MIGDB_USERNAME` and `MIGDB_PASSWORD` as repository secrets.
-Until they're added, the workflow silently falls back to whatever
-`config.yaml` contains in the checked-out commit (both env vars resolve to
-empty strings, which the settings.py check treats as "not set").
+The Jenkinsfile's `environment` block binds these from **Jenkins'
+credential store**, not repo secrets:
+
+```groovy
+environment {
+    MIGDB_USERNAME = credentials('migdb-username')
+    MIGDB_PASSWORD = credentials('migdb-password')
+}
+```
+
+**One-time setup**: in Jenkins, **Manage Jenkins → Credentials**, add two
+"Secret text" credentials with IDs exactly `migdb-username` and
+`migdb-password`. Jenkins masks matching values in console output
+automatically (visible in build logs as `Masking supported pattern matches
+of $MIGDB_USERNAME or $MIGDB_PASSWORD`).
 
 Every other screen's test data (vault aliases, schema/PDB names,
 checkpoint table names, etc.) still lives only in the committed
 `config/config.yaml` — none of that is secret-backed, since it's
 environment topology rather than a credential.
+
+## Note on GitHub Actions
+
+This repo briefly carried a parallel `.github/workflows/tests.yml` GitHub
+Actions workflow targeting a self-hosted runner. It has been removed in
+favor of the Jenkins pipeline above, which was already live and covering
+the same triggers (push/PR-equivalent via webhook, manual dispatch with
+marker/browser params, and nightly scheduled regression) — running both
+would have executed the same suite twice against the same on-prem
+environment for no benefit.

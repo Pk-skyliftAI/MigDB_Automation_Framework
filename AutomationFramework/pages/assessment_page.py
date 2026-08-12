@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 from playwright.sync_api import expect, TimeoutError as PlaywrightTimeoutError
 
@@ -104,43 +105,89 @@ class AssessmentPage(BasePage):
         # false-negative "technical issue" dialog - so retry reopening
         # the combobox (it re-fetches on open) against a generous time
         # budget rather than a small fixed retry count.
+        #
+        # This list accumulates 25+ jobs across days of testing, and the
+        # dropdown only renders a subset unfiltered - picking `.last`
+        # against that unfiltered/undertyped list can silently grab a
+        # STALE job from a previous day instead of the one this run just
+        # created (confirmed live 2026-08-11: the combobox ended up
+        # showing "SOURCECDB_20260810163016" - a leftover job from the
+        # day before - while a brand new "SOURCECDB_20260811124209" had
+        # completed in the background, unselected; verify_assessment_
+        # completed() then failed on Export JSON/PDF because that old
+        # job's record was itself a leftover of the known assessment-
+        # stall bug, not a fresh completed report). Typing today's date
+        # onto the alias prefix narrows the list to a small, fully
+        # rendered, chronologically-ascending set, so `.last` reliably
+        # lands on the newest match instead of whatever happened to be
+        # rendered first.
+        today_prefix = job_name_prefix + datetime.now().strftime("%Y%m%d")
+
         matching = self.page.locator(
             "[role='row']"
         ).filter(has_text=job_name_prefix)
+
+        narrowed = matching.filter(has_text=today_prefix)
 
         deadline = time.monotonic() + (timeout / 1000)
 
         while time.monotonic() < deadline:
             combo.click(force=True)
+            combo.fill("")
+            combo.type(today_prefix, delay=30)
+            self.page.wait_for_timeout(1000)
 
-            if matching.count() > 0:
+            if narrowed.count() > 0:
                 break
 
-            combo.click(force=True)
             self.page.wait_for_timeout(3000)
         else:
             combo.click(force=True)
+            combo.fill("")
+            combo.type(today_prefix, delay=30)
+            self.page.wait_for_timeout(1000)
 
-        matching.last.click()
+        # Fall back to the unfiltered match only if typing somehow found
+        # nothing at all under today's date (e.g. right at a midnight
+        # boundary) rather than hard-failing.
+        target = narrowed if narrowed.count() > 0 else matching
+        target.last.click()
 
-    def verify_assessment_completed(self, timeout=45000):
+    def verify_assessment_completed(self, timeout=300000):
 
-        expect(
-            self.page.get_by_role("progressbar")
-        ).to_have_count(0, timeout=timeout)
+        # The real completion signal is the "Running Assessment" modal
+        # closing, NOT a generic role="progressbar" count - confirmed
+        # live 2026-08-11 that this dialog renders its "X of Y steps
+        # complete Z%" indicator as plain text, not an ARIA progressbar
+        # element, so the old `get_by_role("progressbar").to_have_count
+        # (0)` check could pass immediately while this dialog was still
+        # genuinely open and running. That, combined with the finishing
+        # heading/button checks below only getting Playwright's default
+        # 5s timeout (no explicit timeout was passed), is what produced
+        # repeated "stalled at 89-92%" failures - a live diagnostic
+        # (poll every 10s) showed the SAME job going from 50% -> 93% ->
+        # dialog closed in just 20s total when given the chance, so this
+        # was a test-side timeout bug, not a permanent backend hang.
+        # 300s is generous - a real, heavily-loaded stall (e.g. during a
+        # full concurrent regression run) is still possible and should
+        # still fail loudly rather than pass, just not this early.
+        self.wait_for_dialog_to_close("Running Assessment", timeout=timeout)
+
+        TIMEOUT = 15000
 
         self.expect_visible_by_role(
-            *AssessmentLocators.RECOMMENDED_RDS_HEADING
+            *AssessmentLocators.RECOMMENDED_RDS_HEADING, timeout=TIMEOUT
         )
 
         self.expect_visible_by_role(
-            *AssessmentLocators.MIGRATION_BLOCKERS_HEADING
+            *AssessmentLocators.MIGRATION_BLOCKERS_HEADING, timeout=TIMEOUT
         )
 
-        self.expect_visible_by_role(
-            *AssessmentLocators.EXPORT_JSON_BUTTON
-        )
-
-        self.expect_visible_by_role(
-            *AssessmentLocators.EXPORT_PDF_BUTTON
-        )
+        # Export JSON/PDF buttons intentionally removed from this screen -
+        # confirmed live 2026-08-11 (user-confirmed intentional app
+        # change, not a bug): a completed report page (checked for both a
+        # freshly finished job and one from over a day earlier, fully
+        # settled) has exactly 2 buttons in the entire DOM - "Start Here"
+        # and "ORACLE admin" - neither Export button exists at all
+        # anymore. Don't re-add these checks without first confirming
+        # they're back in the live app.

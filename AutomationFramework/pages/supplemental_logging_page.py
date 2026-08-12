@@ -33,6 +33,10 @@ class SupplementalLoggingPage(BasePage):
 
     def verify_action_buttons(self):
 
+        # A "Fetching credential domains" dialog can still be covering
+        # the toolbar at this point with no fixed duration - confirmed
+        # live 2026-08-10 this now regularly exceeds the default 5s
+        # timeout (same class of race as other screens under Setup).
         for role, name in (
 
             SupplementalLoggingLocators.ADD_TRANDATA,
@@ -40,7 +44,7 @@ class SupplementalLoggingPage(BasePage):
             SupplementalLoggingLocators.DELETE_TRANDATA,
 
         ):
-            self.expect_visible_by_role(role, name)
+            self.expect_visible_by_role(role, name, timeout=15000)
 
     # ---------------------------------------------------------
     # Trandata tab navigation

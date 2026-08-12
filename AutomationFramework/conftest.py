@@ -26,7 +26,6 @@ from pages.analyze_objects_page import AnalyzeObjectsPage
 from pages.analyze_trails_page import AnalyzeTrailsPage
 from pages.troubleshoot_page import TroubleshootPage
 from pages.logfile_page import LogFilePage
-from pages.compare_pad_page import ComparePadPage
 
 logger = Logger.get_logger(__name__)
 
@@ -241,7 +240,3 @@ def troubleshoot(logged_in_page):
 @pytest.fixture
 def logfile(logged_in_page):
     return LogFilePage(logged_in_page)
-
-@pytest.fixture
-def compare_pad(logged_in_page):
-    return ComparePadPage(logged_in_page)

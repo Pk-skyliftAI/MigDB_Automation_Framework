@@ -76,11 +76,18 @@ class ConfigTablesPage(BasePage):
 
     def open_checkpoint_view_tab(self):
 
-        self._checkpoint_toolbar().get_by_role(
-            "radio",
-            name=ConfigTablesLocators.CHECKPOINT_VIEW_TAB,
-            exact=True
-        ).click(force=True)
+        # Same reverts-to-default-tab race as Upgrade/Delete/Edit below -
+        # confirmed live 2026-08-11 via screenshot: a single
+        # click(force=True) here landed back on "Add" instead of "View",
+        # which made view_checkpoint_table()'s table-name dropdown lookup
+        # fail (Add's plain textbox has no dropdown at all, so it looked
+        # like a data/config mismatch until the screenshot showed the
+        # real tab state). Missed this one when scoped-fixing the other
+        # three tabs on this screen - same fix applies here.
+        self.select_stable_tab_scoped(
+            self._checkpoint_toolbar(),
+            ConfigTablesLocators.CHECKPOINT_VIEW_TAB
+        )
 
         # This form's Vault Domain option list loads asynchronously and
         # can take upwards of 5-10s to populate with no visible loading
@@ -151,11 +158,15 @@ class ConfigTablesPage(BasePage):
             timeout=30000
         )
 
-        self._checkpoint_toolbar().get_by_role(
-            "radio",
-            name=ConfigTablesLocators.CHECKPOINT_UPGRADE_TAB,
-            exact=True
-        ).click(force=True)
+        # Confirmed live (2026-08-10): a single force-click here can land
+        # on "Upgrade" only for the toolbar to silently snap back to
+        # "Add" before the content settles - same reverts-to-default-tab
+        # race select_stable_tab was built for, scoped here since
+        # CheckpointTable/HeartBeatTable share tab names on this page.
+        self.select_stable_tab_scoped(
+            self._checkpoint_toolbar(),
+            ConfigTablesLocators.CHECKPOINT_UPGRADE_TAB
+        )
 
         # Same async-populate quirk as the View sub-tab (no visible
         # loading indicator) - see open_checkpoint_view_tab.
@@ -168,11 +179,10 @@ class ConfigTablesPage(BasePage):
             timeout=30000
         )
 
-        self._checkpoint_toolbar().get_by_role(
-            "radio",
-            name=ConfigTablesLocators.CHECKPOINT_DELETE_TAB,
-            exact=True
-        ).click(force=True)
+        self.select_stable_tab_scoped(
+            self._checkpoint_toolbar(),
+            ConfigTablesLocators.CHECKPOINT_DELETE_TAB
+        )
 
         self.page.wait_for_timeout(10000)
 
@@ -240,11 +250,10 @@ class ConfigTablesPage(BasePage):
             timeout=30000
         )
 
-        self._heartbeat_toolbar().get_by_role(
-            "radio",
-            name=ConfigTablesLocators.HEARTBEAT_EDIT_TAB,
-            exact=True
-        ).click(force=True)
+        self.select_stable_tab_scoped(
+            self._heartbeat_toolbar(),
+            ConfigTablesLocators.HEARTBEAT_EDIT_TAB
+        )
 
         self.page.wait_for_timeout(10000)
 
@@ -255,11 +264,10 @@ class ConfigTablesPage(BasePage):
             timeout=30000
         )
 
-        self._heartbeat_toolbar().get_by_role(
-            "radio",
-            name=ConfigTablesLocators.HEARTBEAT_DELETE_TAB,
-            exact=True
-        ).click(force=True)
+        self.select_stable_tab_scoped(
+            self._heartbeat_toolbar(),
+            ConfigTablesLocators.HEARTBEAT_DELETE_TAB
+        )
 
         self.page.wait_for_timeout(10000)
 
@@ -309,41 +317,56 @@ class ConfigTablesPage(BasePage):
     def verify_screen_structure(self):
 
         # Content lags the tab selection by several seconds with no
-        # visible loading indicator, so the first check needs a generous
-        # timeout.
+        # visible loading indicator. Confirmed live 2026-08-11: a
+        # "Fetching credential domains" dialog can block ANY check in
+        # this sequence, not just the first - it's been seen stalling
+        # the second check (HEARTBEAT_TABLE_HEADING) in one run and the
+        # last (ADD_HEARTBEAT_TABLE_BUTTON) in another, with no fixed
+        # position. Every check here gets the same generous timeout
+        # rather than chasing which one it lands on next.
+        TIMEOUT = 15000
+
         self.expect_visible_by_role(
             *ConfigTablesLocators.CHECKPOINT_TABLE_HEADING,
-            timeout=15000
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_role(
-            *ConfigTablesLocators.HEARTBEAT_TABLE_HEADING
+            *ConfigTablesLocators.HEARTBEAT_TABLE_HEADING,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.CHECKPOINT_TABLENAME_TEXT
+            ConfigTablesLocators.CHECKPOINT_TABLENAME_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.DIRECTION_TEXT
+            ConfigTablesLocators.DIRECTION_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.PARTITIONED_TEXT
+            ConfigTablesLocators.PARTITIONED_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.FREQUENCY_TEXT
+            ConfigTablesLocators.FREQUENCY_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.RETENTION_TEXT
+            ConfigTablesLocators.RETENTION_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_text(
-            ConfigTablesLocators.PURGE_FREQUENCY_TEXT
+            ConfigTablesLocators.PURGE_FREQUENCY_TEXT,
+            timeout=TIMEOUT
         )
 
         self.expect_visible_by_role(
-            *ConfigTablesLocators.ADD_HEARTBEAT_TABLE_BUTTON
+            *ConfigTablesLocators.ADD_HEARTBEAT_TABLE_BUTTON,
+            timeout=TIMEOUT
         )

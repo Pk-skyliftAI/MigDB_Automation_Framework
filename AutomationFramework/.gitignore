@@ -42,3 +42,8 @@ Thumbs.db
 # SSH keys / credentials
 key/
 *.pem
+
+# GitHub Actions self-hosted runner (dropped in favor of Jenkins - see
+# docs/CI_CD.md). Left on disk but should never be committed (~900MB of
+# runner binaries).
+actions-runner/

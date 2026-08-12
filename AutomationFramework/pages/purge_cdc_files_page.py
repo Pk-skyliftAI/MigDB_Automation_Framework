@@ -30,5 +30,13 @@ class PurgeCdcFilesPage(BasePage):
         )
 
         self.expect_visible_by_text(
-            PurgeCdcFilesLocators.NO_PARAMETER_ENABLED_TEXT
+            PurgeCdcFilesLocators.MGR_PRM_PREVIEW_TEXT
+        )
+
+        self.expect_visible_by_role(
+            *PurgeCdcFilesLocators.APPLY_BUTTON
+        )
+
+        self.expect_visible_by_role(
+            *PurgeCdcFilesLocators.RESET_BUTTON
         )

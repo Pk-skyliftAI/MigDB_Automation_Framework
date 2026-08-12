@@ -8,6 +8,17 @@ class InitialLoadLocators:
     NAV_ITEM = "Homogeneous Initial Load"
     MONITOR_NAV_ITEM = "Homo Initial Load Monitor"
 
+    # New field confirmed live 2026-08-10 (post app-binary update),
+    # not previously present - sits above Choose Deployment Name on the
+    # DataSource step. Ties to the same "Zero DownTime" feature whose
+    # missing conn.db column (dep_priv_url) caused a real backend error
+    # earlier this session (see docs/TROUBLESHOOTING.md). Off by
+    # default and not required for the existing flow -
+    # select_source_deployment/select_source use role+name lookups so
+    # this new element's position doesn't affect them - not yet
+    # exercised by any test.
+    ENABLE_ZERO_DOWNTIME_SWITCH = ("switch", "Enable Zero DownTime")
+
     DEPLOYMENT_NAME_COMBOBOX = ("combobox", "Choose Deployment Name")
 
     # Lists vault aliases (not domains). Selecting a CDB-root alias here
