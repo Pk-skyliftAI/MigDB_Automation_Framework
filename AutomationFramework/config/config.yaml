@@ -126,14 +126,17 @@ designer:
   # PDB-scoped, not CDB-root) - TargetDB satisfies that.
   target_alias: "TargetDB"
 
-  # NOT YET RE-VERIFIED on 192.168.77.125 - the instance there is SID/
-  # instance name "ORCL" (confirmed live via v$instance), not "ORCLTGT".
-  # "ORCLTGT" may have been a display name shown somewhere in the app's
-  # UI rather than the literal instance name (same pattern as
-  # initial_load.source_db_name's "ORCLDB" vs SID "orcldb" note below) -
-  # don't trust this value until confirmed against whatever the app
-  # itself shows for this new target in a Database Name dropdown.
-  target_db_name: "ORCLTGT"
+  # Fixed 2026-08-20 - was "ORCLTGT" (stale, carried over from the dead
+  # 192.168.77.42 host, never re-verified). Confirmed live two ways: (1)
+  # v$instance/global_name over SSH on 192.168.77.125 both say "ORCL",
+  # (2) ran test_create_homogeneous_initial_load live, watched it
+  # correctly reach the Target DB step and time out clicking a row named
+  # "ORCLTGT ORCLPDB" that doesn't exist, then read the real grid row
+  # directly: "ORCL  ORCLPDB  ...  TargetDB-MigDB-for-Oracle...". Same
+  # class of gotcha as initial_load.source_db_name's "ORCLDB" vs SID
+  # "orcldb" note below - the app's grid "DB Name" isn't always the
+  # literal SID, but here it happens to match.
+  target_db_name: "ORCL"
 
   # Target's PDB is unchanged at "ORCLPDB" - confirmed live via v$pdbs on
   # BOTH 192.168.77.42 (pre-outage) and 192.168.77.125 (2026-08-20 rebuild,
@@ -214,9 +217,9 @@ initial_load:
   # click timeout in test_homogeneous_initial_load.py.
   source_db_name: "ORCLDB"
 
-  # NOT YET RE-VERIFIED on 192.168.77.125 - see designer.target_db_name
-  # note above (same open question, same value).
-  target_db_name: "ORCLTGT"
+  # Fixed 2026-08-20 - see designer.target_db_name note above (same fix,
+  # same live evidence: real grid row is "ORCL ORCLPDB", not "ORCLTGT").
+  target_db_name: "ORCL"
 
   directory_name: "DATA_PUMP_DIR"
 
