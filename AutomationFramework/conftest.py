@@ -38,6 +38,96 @@ def pytest_addoption(parser):
         help="Browser to execute tests on."
     )
 
+# ---------------------------------------------------------------------------
+# Test collection order - report/run tests in the app's real workflow order
+# (log in -> create a DB alias -> assess the source -> configure capture ->
+# build the Designer pipeline -> initial load -> ongoing manage/monitor ->
+# diagnostic screens) instead of pytest's default alphabetical-by-folder
+# order. Within a module, the screen-structure sanity test runs before the
+# functional/state-changing tests built on top of it.
+#
+# Folder names in MODULE_ORDER must match tests/<folder> exactly. A folder
+# that exists but isn't listed here isn't an error - it just sorts after
+# everything that is listed, so a new module never silently disappears.
+# ---------------------------------------------------------------------------
+
+MODULE_ORDER = [
+    "authentication",
+    "navigation",
+    "dashboard",
+    "vault",
+    "assessment",            # "Pre-Migration Assessment" - run once a source
+                              # alias exists, before any capture/pipeline work
+    "supplemental_logging",
+    "parameter_file",
+    "connections",
+    "purge_cdc_files",
+    "config_tables",
+    "designer",
+    "initial_load",
+    "dataflow",
+    "manage",
+    "monitor",
+    "conflict_resolution",
+    "analyze_objects",
+    "analyze_trails",
+    "troubleshoot",
+    "logfile",
+]
+
+# Explicit within-module order for the handful of folders with more than one
+# file, where plain filename-alphabetical order doesn't match real screen
+# usage (structure/sanity test first, then the functional flows built on top
+# of it). Folders not listed here fall back to alphabetical - either because
+# they only have one file, or alphabetical already matches the real order.
+TEST_FILE_ORDER = {
+    "authentication": ["test_login", "test_invalid_login", "test_logout"],
+    "vault": [
+        "test_vault_screen_structure",
+        "test_add_source_db_alias",
+        "test_delete_source_db_alias",
+    ],
+    "supplemental_logging": [
+        "test_supplemental_logging_screen",
+        "test_enable_schema_trandata",
+    ],
+    "config_tables": [
+        "test_config_tables_screen",
+        "test_add_checkpoint_table",
+        "test_view_checkpoint_table",
+        "test_heartbeat_table_edit_delete_structure",
+        "test_checkpoint_table_upgrade_delete_structure",
+    ],
+    "designer": [
+        "test_designer",
+        "test_integrated_extract_capture",
+        "test_classic_replicat_apply",
+    ],
+    "initial_load": [
+        "test_homogeneous_initial_load",
+        "test_homo_initial_load_monitor_screen",
+        "test_heterogeneous_initial_load_screen",
+        "test_hetro_initial_load_monitor_screen",
+    ],
+    "manage": ["test_manage", "test_manager_actions_menu"],
+}
+
+
+def pytest_collection_modifyitems(items):
+
+    def sort_key(item):
+        parts = item.path.parts
+        module = parts[parts.index("tests") + 1] if "tests" in parts else ""
+        module_rank = MODULE_ORDER.index(module) if module in MODULE_ORDER else len(MODULE_ORDER)
+
+        file_stem = item.path.stem
+        file_order = TEST_FILE_ORDER.get(module)
+        file_rank = file_order.index(file_stem) if file_order and file_stem in file_order else 0
+
+        return (module_rank, file_rank, file_stem, item.name)
+
+    items.sort(key=sort_key)
+
 @pytest.fixture(scope="function")
 def browser(request):
 

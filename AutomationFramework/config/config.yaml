@@ -28,19 +28,24 @@ secure_vault:
 
   existing_aliases:
     - "SOURCECDB"
-    - "TARGETDB_ROOT"    # CDB-root only (c##migdb@192.168.77.42:1521/orcltgt) -
-                         # confirmed 2026-08-06 that Replicat refuses to log on
-                         # here at all: "OGG-02661 Replicat is not allowed to
-                         # log on to the root level database" (real PROCESS
-                         # ABENDING on RLP2). Fine for things that only need a
-                         # CDB-level connection (e.g. Config Tables' View,
-                         # which worked fine through this alias), NOT fine for
-                         # Target CredentialStore/Replicat - use TARGETPDB.
-    - "TARGETPDB"        # added 2026-08-06 - PDB-scoped
-                         # (c##migdb@192.168.77.42:1521/orclpdb, the "orclpdb"
-                         # service registered to PDB ORCLPDB - confirmed via
-                         # lsnrctl status / v$services on 192.168.77.42). This
-                         # is the one Replicat actually needs.
+    - "TargetDB"         # 2026-08-20: 192.168.77.42 went down, replaced by
+                         # new target host 192.168.77.125 (see TROUBLESHOOTING.md
+                         # / memory). The old TARGETDB_ROOT (CDB-root) /
+                         # TARGETPDB (PDB-scoped) split is gone - rebuilt as
+                         # ONE alias, "TargetDB", PDB-scoped
+                         # (c##migdb@192.168.77.125:1521/orclpdb - confirmed
+                         # live via network login test, same "orclpdb" service
+                         # pattern as the old TARGETPDB). Confirmed live via
+                         # Secure Vault screen 2026-08-20: only 3 aliases now
+                         # exist (SOURCECDB, TargetDB, SOURCEPDB).
+                         #
+                         # NOT YET RE-VERIFIED: whether Config Tables' View
+                         # (which the old CDB-root TARGETDB_ROOT alias was
+                         # specifically kept around for - see the OGG-02661
+                         # note this replaced) still works through this single
+                         # PDB-scoped alias, or needs its own CDB-root alias
+                         # added back. Watch for a repeat of that failure mode
+                         # once Config Tables is exercised against this host.
     - "SOURCEPDB"
 
   automation_alias:
@@ -63,11 +68,13 @@ config_tables:
 
   checkpoint_domain: SkyliftAI
 
-  # Renamed a second time 2026-08-06: Target -> TargetDB -> TARGETDB_ROOT.
-  # See secure_vault.existing_aliases note - same connect string as
-  # before, no PDB in the service name. Re-verify before trusting this
-  # if it changes again.
-  checkpoint_alias: TARGETDB_ROOT
+  # History: Target -> TargetDB -> TARGETDB_ROOT (2026-08-06) -> back to
+  # TargetDB again 2026-08-20, after 192.168.77.42 went down and the target
+  # was rebuilt on 192.168.77.125 as a single alias. See
+  # secure_vault.existing_aliases note above for the full context and the
+  # open question about whether this PDB-scoped alias covers what the old
+  # CDB-root TARGETDB_ROOT alias was kept for.
+  checkpoint_alias: TargetDB
 
   # Renamed CKPT -> CKPTS 2026-08-06 - old CKPT/CKPT_LOX were dropped
   # and recreated fresh (had stale RLP1 data from a prior/cloned
@@ -110,17 +117,33 @@ designer:
   # from "TARGETDB_ROOT" to "TARGETPDB" 2026-08-06 - the CDB-root alias
   # makes Replicat ABEND ("OGG-02661 Replicat is not allowed to log on
   # to the root level database", confirmed real on RLP2) - see
-  # secure_vault.existing_aliases note above. Rebuilding this branch
-  # for real from scratch should use TARGETPDB from the start.
-  target_alias: "TARGETPDB"
+  # secure_vault.existing_aliases note above.
+  #
+  # 2026-08-20: 192.168.77.42 went down, target rebuilt on 192.168.77.125.
+  # TARGETPDB no longer exists - the new (single, PDB-scoped) alias is
+  # called TargetDB, confirmed live via the Secure Vault screen. Same
+  # underlying requirement as the 2026-08-06 note still applies (needs
+  # PDB-scoped, not CDB-root) - TargetDB satisfies that.
+  target_alias: "TargetDB"
 
-  target_db_name: "ORCLTGT"
+  # Fixed 2026-08-20 - was "ORCLTGT" (stale, carried over from the dead
+  # 192.168.77.42 host, never re-verified). Confirmed live two ways: (1)
+  # v$instance/global_name over SSH on 192.168.77.125 both say "ORCL",
+  # (2) ran test_create_homogeneous_initial_load live, watched it
+  # correctly reach the Target DB step and time out clicking a row named
+  # "ORCLTGT ORCLPDB" that doesn't exist, then read the real grid row
+  # directly: "ORCL  ORCLPDB  ...  TargetDB-MigDB-for-Oracle...". Same
+  # class of gotcha as initial_load.source_db_name's "ORCLDB" vs SID
+  # "orcldb" note below - the app's grid "DB Name" isn't always the
+  # literal SID, but here it happens to match.
+  target_db_name: "ORCL"
 
-  # Target's PDB is unchanged at "ORCLPDB" (confirmed live via v$pdbs on
-  # 192.168.77.42) even though source_pdb_name changed to ORCLPDB1 on
-  # this environment - a separate key on purpose (test_classic_replicat_
-  # apply.py previously reused source_pdb_name for both source and
-  # target, which only worked by coincidence when both were "ORCLPDB").
+  # Target's PDB is unchanged at "ORCLPDB" - confirmed live via v$pdbs on
+  # BOTH 192.168.77.42 (pre-outage) and 192.168.77.125 (2026-08-20 rebuild,
+  # same PDB name reused) - a separate key on purpose (test_classic_
+  # replicat_apply.py previously reused source_pdb_name for both source
+  # and target, which only worked by coincidence when both were
+  # "ORCLPDB").
   target_pdb_name: "ORCLPDB"
 
   # Renamed again 2026-08-11 - see extract_name note above. Confirmed
@@ -171,7 +194,11 @@ initial_load:
   # Switched to PDB-scoped alias 2026-08-06 - see designer.target_alias
   # note above. Initial Load itself is out of active scope per user
   # instruction, config left in sync anyway.
-  target_alias: "TARGETPDB"
+  #
+  # 2026-08-20: TARGETPDB no longer exists (192.168.77.42 outage, target
+  # rebuilt on 192.168.77.125 as a single alias) - see
+  # secure_vault.existing_aliases / designer.target_alias notes.
+  target_alias: "TargetDB"
 
   # Target's PDB is "ORCLPDB" (no "1"), NOT the same as source_pdb_name
   # ("ORCLPDB1") - a separate key on purpose, same class of bug as
@@ -190,7 +217,9 @@ initial_load:
   # click timeout in test_homogeneous_initial_load.py.
   source_db_name: "ORCLDB"
 
-  target_db_name: "ORCLTGT"
+  # Fixed 2026-08-20 - see designer.target_db_name note above (same fix,
+  # same live evidence: real grid row is "ORCL ORCLPDB", not "ORCLTGT").
+  target_db_name: "ORCL"
 
   directory_name: "DATA_PUMP_DIR"
 
