@@ -74,7 +74,13 @@ config_tables:
   # environment) then the user added the current one as CKPTS. Verified
   # live on 192.168.77.42/ORCLPDB: C##MIGDB.CKPTS + CKPTS_LOX exist,
   # correct GoldenGate checkpoint structure, 0 rows.
-  checkpoint_table_name: "ORCLPDB.C##MIGDB.CKPTS"
+  #
+  # 2026-08-20: 192.168.77.42 went down and was replaced by a new target
+  # host, 192.168.77.125 (c##migdb user rebuilt fresh there - see
+  # TROUBLESHOOTING.md/memory). Checkpoint table rebuilt fresh on the
+  # new host too, spelled differently this time - CHKPTS, not CKPTS.
+  # User-confirmed rename, not a typo - don't "fix" it back.
+  checkpoint_table_name: "ORCLPDB.C##MIGDB.CHKPTS"
 
 designer:
 
@@ -123,7 +129,13 @@ designer:
   # RLP4.prm useridalias was fixed live earlier this session (see
   # docs/TROUBLESHOOTING.md's dep_priv_url/RLP4 entries), so it's
   # confirmed to be a real, currently-running process, not a stale name.
-  replicat_name: "RLP4"
+  #
+  # Renamed again 2026-08-20: old target host 192.168.77.42 went down,
+  # replaced by 192.168.77.125. Replicat rebuilt against the new target
+  # alias/checkpoint table there and came up as RLP5 (RLP4 was bound to
+  # the dead host's checkpoint table, can't be reused). User-confirmed
+  # live value - not yet re-verified by me via Monitor on the new host.
+  replicat_name: "RLP5"
 
   # --- Extract Pump / Classic Replicat creation - NOT live-confirmed ---
   # need confirming with the user before this branch is ever exercised
@@ -133,8 +145,9 @@ designer:
 
   remote_trail_name: "rt"
 
-  # See config_tables.checkpoint_table_name note above - renamed to CKPTS.
-  checkpoint_table: "ORCLPDB.C##MIGDB.CKPTS"
+  # See config_tables.checkpoint_table_name note above - renamed to
+  # CHKPTS 2026-08-20 on the new 192.168.77.125 target host.
+  checkpoint_table: "ORCLPDB.C##MIGDB.CHKPTS"
 
 initial_load:
 
