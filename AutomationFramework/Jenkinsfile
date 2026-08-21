@@ -1,5 +1,5 @@
 pipeline {
-    agent any   // runs directly on odb since Jenkins master IS odb in this setup
+    agent any   // runs directly on odb(server name) since Jenkins master is odb in this setup
 
     parameters {
         string(name: 'MARKER', defaultValue: 'regression', description: 'pytest -m marker expression to run')
