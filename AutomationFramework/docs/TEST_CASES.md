@@ -10,6 +10,13 @@ file has more than one, both are listed.
 `smoke` tag are flows too heavy/state-changing to run in a quick smoke pass
 (real form submissions, real infra creation).
 
+Sections below follow the app's real workflow order (also how `conftest.py`'s
+`pytest_collection_modifyitems` hook sorts test execution/reporting — see
+that file for the authoritative `MODULE_ORDER` list). **Dashboard is last on
+purpose**: user-confirmed 2026-08-20 that Dashboard is the summary/final
+screen in this app's real workflow (overall migration status), not a landing
+page checked first.
+
 ## Authentication
 
 | File | Test | Covers | Markers |
@@ -18,13 +25,11 @@ file has more than one, both are listed.
 | `tests/authentication/test_invalid_login.py` | `test_invalid_login` | Invalid credentials rejected | `smoke`, `regression`, `login`, `negative` |
 | `tests/authentication/test_logout.py` | `test_logout` | Logout flow | `smoke`, `regression`, `logout` |
 
-## Navigation & Dashboard
+## Navigation
 
 | File | Test | Covers | Markers |
 |---|---|---|---|
 | `tests/navigation/test_navigation.py` | `test_navigation` | All 17 top-level nav tree items are present | `smoke`, `regression`, `navigation` |
-| `tests/dashboard/test_dashboard.py` | `test_dashboard` | Dashboard screen loads | `smoke`, `regression`, `dashboard` |
-| `tests/dataflow/test_dataflow_screen.py` | `test_dataflow_screen_structure` | Dataflow (Replication flow) screen structure | `smoke`, `regression`, `dataflow` |
 
 ## Secure Vault
 
@@ -33,6 +38,12 @@ file has more than one, both are listed.
 | `tests/vault/test_vault_screen_structure.py` | `test_vault_screen_structure` | Secure Vault screen layout | `smoke`, `regression`, `vault` |
 | `tests/vault/test_add_source_db_alias.py` | `test_add_database_alias` | Add + delete a database alias (full round trip, self-cleaning) | `smoke`, `regression`, `vault` |
 | `tests/vault/test_delete_source_db_alias.py` | `test_delete_database_alias` | Delete-alias flow in isolation | `smoke`, `regression`, `vault` |
+
+## Assessment
+
+| File | Test | Covers | Markers |
+|---|---|---|---|
+| `tests/assessment/test_pre_migration_assessment.py` | `test_pre_migration_assessment` | Create Job + Monitor Job | `smoke`, `regression`, `assessment`, `flaky` |
 
 ## Setup > Supplemental Logging
 
@@ -59,12 +70,6 @@ file has more than one, both are listed.
 | `tests/config_tables/test_checkpoint_table_upgrade_delete_structure.py` | `test_checkpoint_table_upgrade_delete_structure` | Upgrade/Delete tab structure only (deliberately doesn't submit — acts on the real checkpoint table backing a live replicat) | `regression`, `config_tables`, `flaky` |
 | `tests/config_tables/test_heartbeat_table_edit_delete_structure.py` | `test_heartbeat_table_edit_delete_structure` | HeartBeatTable Edit/Delete tab structure only | `regression`, `config_tables`, `flaky` |
 
-## Assessment
-
-| File | Test | Covers | Markers |
-|---|---|---|---|
-| `tests/assessment/test_pre_migration_assessment.py` | `test_pre_migration_assessment` | Create Job + Monitor Job | `smoke`, `regression`, `assessment`, `flaky` |
-
 ## Designer
 
 | File | Test | Covers | Markers |
@@ -81,6 +86,12 @@ file has more than one, both are listed.
 | `tests/initial_load/test_homo_initial_load_monitor_screen.py` | `test_homo_initial_load_monitor_screen_structure` | Homogeneous monitor screen structure | `smoke`, `regression`, `initial_load` |
 | `tests/initial_load/test_heterogeneous_initial_load_screen.py` | `test_heterogeneous_initial_load_screen_structure` | Heterogeneous DataSource form structure | `smoke`, `regression`, `initial_load` |
 | `tests/initial_load/test_hetro_initial_load_monitor_screen.py` | `test_hetro_initial_load_monitor_screen_structure` | Heterogeneous monitor screen structure | `smoke`, `regression`, `initial_load` |
+
+## Dataflow
+
+| File | Test | Covers | Markers |
+|---|---|---|---|
+| `tests/dataflow/test_dataflow_screen.py` | `test_dataflow_screen_structure` | Dataflow (Replication flow) screen structure | `smoke`, `regression`, `dataflow` |
 
 ## Manage / Monitor
 
@@ -99,6 +110,12 @@ file has more than one, both are listed.
 | `tests/analyze_trails/test_analyze_trails_screen.py` | `test_analyze_trails_screen_structure` | Analyze Trails (Logdump/Load Balance) screen structure | `smoke`, `regression`, `analyze_trails` |
 | `tests/troubleshoot/test_troubleshoot_screen.py` | `test_troubleshoot_screen_structure` | Integrated Extract healthcheck dashboard structure | `smoke`, `regression`, `troubleshoot` |
 | `tests/logfile/test_logfile_screen.py` | `test_logfile_screen_structure` | LogFile screen (CDC Error Log/Report Files/Discard Files) structure | `smoke`, `regression`, `logfile` |
+
+## Dashboard (final screen in the workflow)
+
+| File | Test | Covers | Markers |
+|---|---|---|---|
+| `tests/dashboard/test_dashboard.py` | `test_dashboard` | Dashboard screen loads | `smoke`, `regression`, `dashboard` |
 
 > **Compare Pad removed 2026-08-10**: this screen was removed from the
 > application in a binary update (confirmed live — no longer present
