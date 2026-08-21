@@ -42,9 +42,15 @@ def pytest_addoption(parser):
 # Test collection order - report/run tests in the app's real workflow order
 # (log in -> create a DB alias -> assess the source -> configure capture ->
 # build the Designer pipeline -> initial load -> ongoing manage/monitor ->
-# diagnostic screens) instead of pytest's default alphabetical-by-folder
-# order. Within a module, the screen-structure sanity test runs before the
-# functional/state-changing tests built on top of it.
+# diagnostic screens -> Dashboard last) instead of pytest's default
+# alphabetical-by-folder order. Within a module, the screen-structure
+# sanity test runs before the functional/state-changing tests built on top
+# of it.
+#
+# Dashboard is deliberately LAST, not right after login - user-confirmed
+# 2026-08-20: per this app's real workflow, Dashboard is the summary/
+# final screen (overall migration status), not a landing page you check
+# first. Don't move it back up near authentication without re-confirming.
 #
 # Folder names in MODULE_ORDER must match tests/<folder> exactly. A folder
 # that exists but isn't listed here isn't an error - it just sorts after
@@ -54,7 +60,6 @@ def pytest_addoption(parser):
 MODULE_ORDER = [
     "authentication",
     "navigation",
-    "dashboard",
     "vault",
     "assessment",            # "Pre-Migration Assessment" - run once a source
                               # alias exists, before any capture/pipeline work
@@ -73,6 +78,7 @@ MODULE_ORDER = [
     "analyze_trails",
     "troubleshoot",
     "logfile",
+    "dashboard",             # LAST - see note above, not a landing page here
 ]
 
 # Explicit within-module order for the handful of folders with more than one
